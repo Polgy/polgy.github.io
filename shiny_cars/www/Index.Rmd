@@ -1,0 +1,31 @@
+---
+title: "Using mtcars Data App"
+author: "Sergey Polgul"
+date: "Saturday, September 20, 2014"
+output: slidy_presentation
+---
+
+## Mtcars data set
+
+This data app is easy to use app that displays predictions for MPG based on user 
+inputs. The inputs are:
+
+- HP rating of a vehicle
+
+- indicator if vehicle has manual transmission
+
+Input for HP rating of the car is limited to the range where we have data so that
+model does not forecast for data points too far off the region based on data.
+
+##Calcultions and Results
+This app demonstates that a linear regression [1]: $$ mpg = am + hp + err$$  
+yeilds the same results as [2]: $$mpg = am + wt + hp + err$$   when correlation between
+$wt$ and $hp$ variables are taken into accoount.
+
+When user inputs are submitted, the app calculates $mpg$ using regression model [2]
+and displays the result on the plot that built with regression model[1].
+
+<small>Adding another input for car weight and displaying a result of prediction based 
+on both variables is sort of trivial and in our opinion obsucres the point of our 
+presentation.</small>
+

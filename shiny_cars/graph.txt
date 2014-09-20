@@ -1,0 +1,12 @@
+> qplot( mpg, hp, colour = cyl , data = mtcars)
+> qplot( mpg, hp, colour = am , data = mtcars)
+> ggplot( mtcars, aes( y=wt, x=mpg ) ) + 
++     geom_point( aes(size=cyl, colour=factor(gear)) ) +
++     stat_smooth( method="lm" )
+> ggplot( mtcars, aes( y=wt, x=mpg ) ) + 
++     geom_point( aes(size=cyl, colour=factor(am)) ) +
++     stat_smooth( method="lm" )
+> qplot(y=mpg, x=hp, col=am, data=mtcars) +
++     stat_smooth(method=lm, formula=y~x)
+> qplot(y=mpg, x=wt, col=am, data=mtcars) +
++     stat_smooth(method=lm, formula=y~x)

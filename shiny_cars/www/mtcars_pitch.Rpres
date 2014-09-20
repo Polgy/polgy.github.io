@@ -1,0 +1,88 @@
+Mtcars Data App Pitch
+========================================================
+author: Sergey Polgul
+date: September 20, 2014
+
+Motivation
+========================================================
+
+Use this app to:
+
+- Compare your car's $mpg$ with $mpg$ of vehicles in 1974
+- Estimate if your vehicle is substantially different with current technology 
+  (more economical or lighter) visually
+- Brush up a bit on interpretation of regression models
+
+Another motivational advise:
+<small>
+"Throwing pebbles into the water, look at the ripples they form on the surface. 
+Otherwise this activity will be an empty amusement." 
+Kozma Prutkov. <http://en.wikipedia.org/wiki/Kozma_Prutkov>
+</small>
+
+
+Looking at MPG by HP alone
+========================================================
+
+```{r hp, echo=FALSE, fig.height=4, fig.width=6}
+library(ggplot2)
+data(mtcars)
+mycars <- mtcars
+mycars$am <- as.factor(ifelse(mtcars$am == 0, "automatic", "manual"))
+
+p_hp <- qplot(y=mpg, x=hp, col=am, data=mycars) +
+        stat_smooth(method=lm, formula=y~x)
+
+print(p_hp)
+
+lm_hp = lm( mpg ~ am + hp, data = mycars)
+c_hp = round(coef(lm_hp),digits=2)
+```
+
+ - $mpg = `r c_hp[1]`+`r c_hp[2]`*I\{"Transmission==Manual"\} `r c_hp[3]`*hp+err$
+ 
+ ***
+ 
+ - Does this model accounts for effect of correlation between weight and HP?
+ 
+
+
+Looking at MPG by Weight Alone
+========================================================
+
+```{r weight, echo=FALSE, fig.height=4, fig.width=6}
+require(ggplot2)
+data(mtcars)
+mycars <- mtcars
+mycars$am <- as.factor(ifelse(mtcars$am == 0, "automatic", "manual"))
+
+p_wt <- qplot(y=mpg, x=wt, col=am, data=mycars) +
+        stat_smooth(method=lm, formula=y~x)
+
+print(p_wt)
+
+lm_wt = lm( mpg ~ am + wt, data = mycars)
+c_wt = round(coef(lm_wt),digits=2)
+```
+
+ - $mpg = `r c_wt[1]` `r c_wt[2]`*I\{"Transmission==Manual"\} `r c_wt[3]`*wt+err$
+ 
+
+Statistical Adjustment
+============================================
+
+```{r hpwt, echo=FALSE}
+
+data(mtcars)
+mycars <- mtcars
+mycars$am <- as.factor(ifelse(mtcars$am == 0, "automatic", "manual"))
+
+lm_wt_hp = lm( mpg ~ am + wt + hp, data = mycars)
+c_wt_hp = round(coef(lm_wt_hp),digits=2)
+```
+
+- Adjusting  $hp$ Predictor for $wt$
+- $mpg = `r c_wt_hp[1]`+`r c_wt_hp[2]`*I\{"Transmission==Manual"\} `r c_wt_hp[3]`*wt `r c_wt_hp[4]`*hp+err$
+- influence of $hp$ dropped from `r c_hp[3]` to `r c_wt_hp[4]`
+- but will results be the same if we plug into this model expected values for $wt$ ?
+- check our app to find out !
