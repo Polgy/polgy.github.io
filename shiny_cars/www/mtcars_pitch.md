@@ -26,7 +26,7 @@ Looking at MPG by HP alone
 
 ![plot of chunk hp](mtcars_pitch-figure/hp.png) 
 
- - $mpg = 26.58+5.28*I\{"Transmission==Manual"\} -0.06*hp+err$
+ - $mpg = 26.58+5.28*I\{"Tran=Manual"\} -0.06*hp+err$
  
  ***
  
@@ -39,7 +39,7 @@ Looking at MPG by Weight Alone
 
 ![plot of chunk weight](mtcars_pitch-figure/weight.png) 
 
- - $mpg = 37.32 -0.02*I\{"Transmission==Manual"\} -5.35*wt+err$
+ - $mpg = 37.32 -0.02*I\{"Tran=Manual"\} -5.35*wt+err$
  
 
 Statistical Adjustment
@@ -48,7 +48,7 @@ Statistical Adjustment
 
 
 - Adjusting  $hp$ Predictor for $wt$
-- $mpg = 34+2.08*I\{"Transmission==Manual"\} -2.88*wt -0.04*hp+err$
+- <small> $mpg = 34+2.08*I\{"Trans=Manual"\} -2.88*wt -0.04*hp+err$ </small>
 - influence of $hp$ dropped from -0.06 to -0.04
-- but will results be the same if we plug into this model expected values for $wt$ ?
-- check our app to find out !
+- what value for $wt$ do we plug in to return the same values as in model[1]?
+- check our app to find out <https://polgy.shinyapps.io/shiny_cars/>

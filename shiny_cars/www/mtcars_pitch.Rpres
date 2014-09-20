@@ -39,7 +39,7 @@ lm_hp = lm( mpg ~ am + hp, data = mycars)
 c_hp = round(coef(lm_hp),digits=2)
 ```
 
- - $mpg = `r c_hp[1]`+`r c_hp[2]`*I\{"Transmission==Manual"\} `r c_hp[3]`*hp+err$
+ - $mpg = `r c_hp[1]`+`r c_hp[2]`*I\{"Tran=Manual"\} `r c_hp[3]`*hp+err$
  
  ***
  
@@ -65,7 +65,7 @@ lm_wt = lm( mpg ~ am + wt, data = mycars)
 c_wt = round(coef(lm_wt),digits=2)
 ```
 
- - $mpg = `r c_wt[1]` `r c_wt[2]`*I\{"Transmission==Manual"\} `r c_wt[3]`*wt+err$
+ - $mpg = `r c_wt[1]` `r c_wt[2]`*I\{"Tran=Manual"\} `r c_wt[3]`*wt+err$
  
 
 Statistical Adjustment
@@ -82,7 +82,7 @@ c_wt_hp = round(coef(lm_wt_hp),digits=2)
 ```
 
 - Adjusting  $hp$ Predictor for $wt$
-- $mpg = `r c_wt_hp[1]`+`r c_wt_hp[2]`*I\{"Transmission==Manual"\} `r c_wt_hp[3]`*wt `r c_wt_hp[4]`*hp+err$
+- <small> $mpg = `r c_wt_hp[1]`+`r c_wt_hp[2]`*I\{"Trans=Manual"\} `r c_wt_hp[3]`*wt `r c_wt_hp[4]`*hp+err$ </small>
 - influence of $hp$ dropped from `r c_hp[3]` to `r c_wt_hp[4]`
-- but will results be the same if we plug into this model expected values for $wt$ ?
-- check our app to find out !
+- what value for $wt$ do we plug in to return the same values as in model[1]?
+- check our app to find out <https://polgy.shinyapps.io/shiny_cars/>
