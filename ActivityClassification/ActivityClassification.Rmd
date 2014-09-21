@@ -38,7 +38,12 @@ it one time to get an estimate of the performance for the final model.
 
 ### Data Pre-Processing
 Below we are only loading features that we are using for model building selected
-during exploratory analysis. This sub sample contains only data that has a lot of 
+during exploratory analysis. 
+We deliberatly omit time data from the features of the data set as it would be 
+for classifier to use these features to classify the outcome however it would be
+of no practical significance. This simply reflects the fact that excercises were 
+done in sequence. 
+This sub sample contains only data that has a lot of 
 variation and are not null or blank. We have omitted features that are mostly 
 blank or have no variation in the data.
 
