@@ -1,0 +1,172 @@
+---
+title: "hw7SVM"
+author: "Sergey Polgul"
+date: "Friday, November 14, 2014"
+output: html_document
+---
+
+Lets generate a single classification data frame and look at the results.
+
+```{r genData}
+source('lib/PLA.R')
+source('lib/genDat.R')
+
+
+DAT = genDat(10, T)
+sum(DAT[[1]]$y==1)
+
+p1 = PLA(DAT[[1]][,1:2], DAT[[1]]$y)
+p1
+
+library(e1071)
+s1=svm (DAT[[1]][,1:2], as.factor(DAT[[1]]$y), kernel = 'linear', scale=F, cost=1e18)
+```
+
+The graph below plots decision boundary for one fit of SVM
+Inspired by 
+https://github.com/MichaelDS/Learning-From-Data/blob/master/5.%20Overfitting%20%26%20Regularization/regularization.R
+
+```{r plotDB}
+library(ggplot2)
+library(gridExtra)
+
+X = expand.grid(list(x1=seq(-1,1, .01), x2=seq(-1,1, .01) ))
+pred_y = predict(s1, newdata = X)
+
+DBplot  <- ggplot(data = X, aes(x1, x2, fill = as.factor(pred_y))) + geom_tile() +
+            xlab("x1") + ylab("x2") +
+            #scale_fill_discrete(limits = c(-1, 1)) + 
+            scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+            labs(fill = 'Decision Boundary')
+
+print(DBplot)
+
+```
+
+Lets now run 1000 experiments with PLA and SVM and find out miscallsification error 
+rates
+
+```{r q08, cache=TRUE}
+REPS=1e3
+PLA_ITERS = rep(NA, REPS)
+PLA_Better = rep(NA, REPS)
+err.PLA= rep(NA, REPS)
+err.SVM= rep(NA, REPS)
+N=10
+# we will reuse the same grid to eval out of sample error
+X = expand.grid(list(x1=seq(-1,1, .01), x2=seq(-1,1, .01) ))
+
+set.seed(1305)
+rep = 1
+while (rep < REPS+1) {
+  DAT = genDat(N)
+  totN=sum(DAT[[1]]$y==1)
+  if (totN==N | totN==0)
+    next
+
+  p = PLA(DAT[[1]][,1:2], DAT[[1]]$y)
+  PLA_ITERS[rep] = p$counter
+  if (p$counter >=1e4)
+    next
+  
+  s = svm (DAT$dat[,1:2], as.factor(DAT$dat$y), 
+            kernel = 'linear', 
+            scale=F, 
+            cost=1e18)
+  
+  truth = pred.Dat (DAT$wdat, X)
+  y_pla = predict.PLA (p, X)
+  y_svm = predict(s, newdata=X)
+  
+  err.PLA[rep] = sum (truth != y_pla)/dim(X)[1]
+  err.SVM[rep] = sum (truth != y_svm)/dim(X)[1]
+  PLA_Better[rep] = ifelse(sum(truth == y_pla)> sum(truth == y_svm), 1, 0)
+  
+  rep=rep+1
+}
+
+```
+
+Now lets visualize statistics from these runs
+
+```{r vis, dependson="q08"}
+#dev.off(dev.list()["RStudioGD"])
+par(mfrow=c(2,2))
+
+hist(PLA_ITERS, breaks = 10000, xlim=c(0, 300))
+hist(err.PLA, breaks=100)
+hist(err.SVM, breaks=100)
+tB = table(PLA_Better)
+names(tB)=c("worse", "better")
+barplot(tB, col=rainbow(3))
+```
+
+
+Now lets re-run everything for n=100. Mostly the same code only counting support 
+vectors in additional to previous statistics.
+
+```{r q09, cache=TRUE}
+REPS=1e3
+PLA_ITERS = rep(NA, REPS)
+PLA_Better = rep(NA, REPS)
+err.PLA= rep(NA, REPS)
+err.SVM= rep(NA, REPS)
+n.SV = rep(NA, REPS)
+N=100
+# we will reuse the same grid to eval out of sample error
+X = expand.grid(list(x1=seq(-1,1, .01), x2=seq(-1,1, .01) ))
+
+set.seed(1433)
+rep = 1
+while (rep < REPS+1) {
+  DAT = genDat(N)
+  totN=sum(DAT[[1]]$y==1)
+  if (totN==N | totN==0)
+    next
+
+  p = PLA(DAT[[1]][,1:2], DAT[[1]]$y)
+  PLA_ITERS[rep] = p$counter
+  if (p$counter >=1e4)
+    next
+  
+  s = svm (DAT$dat[,1:2], as.factor(DAT$dat$y), 
+            kernel = 'linear', 
+            scale=F, 
+            cost=1e18)
+  
+  truth = pred.Dat (DAT$wdat, X)
+  y_pla = predict.PLA (p, X)
+  y_svm = predict(s, newdata=X)
+  n.SV[rep] = dim(s$SV)[1]
+  
+  err.PLA[rep] = sum (truth != y_pla)/dim(X)[1]
+  err.SVM[rep] = sum (truth != y_svm)/dim(X)[1]
+  PLA_Better[rep] = ifelse(sum(truth == y_pla)> sum(truth == y_svm), 1, 0)
+  
+  rep=rep+1
+}
+
+```
+
+Now visulization of results for N=100
+
+```{r vis2, dependson="q08"}
+#dev.off(dev.list()["RStudioGD"])
+par(mfrow=c(2,2))
+
+hist(PLA_ITERS, breaks = 10000, xlim=c(0, 300))
+hist(err.PLA, breaks=100)
+hist(err.SVM, breaks=100)
+tB = table(PLA_Better)
+names(tB)=c("worse", "better")
+barplot(tB, col=rainbow(3))
+
+summary(err.PLA)
+summary(err.SVM)
+tB
+
+summary(n.SV)
+table(n.SV)
+```
+
+
