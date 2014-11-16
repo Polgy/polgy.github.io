@@ -1,0 +1,159 @@
+---
+title: "Capstone Exploratory Analysis"
+author: "Sergey Polgul"
+date: "Saturday, November 15, 2014"
+output: html_document
+---
+
+The purpose of this document id to conduct exploratory data analysis for the 
+SfitKey assignment.
+We will proceed with loading th data. 
+We will split the data set into training and testing to see how our model generalizes.
+
+For the purpose of the assignment we will only work with twitter data set.
+I will clarify this point further into the project but it sems that twitter data
+set is the one that would be most representative for the mobile phone keyboard.
+
+The Twitter dataset contains of 320 MB of twitts [1](www.twitter.com) that
+ammounts to over of 1.4 mil messages.
+
+We are using 0.5 million messages for the exploratory analysis taken from the training
+data set.
+
+```{r readData, echo=T, cache=T}
+
+sdir = "D:/oradata//datasets/SwiftKey/"
+twitter.all <- readLines(paste0(sdir, 'en_US.twitter.txt'), encoding="UTF-8")
+Encoding(twitter.all) <- "UTF-8" 
+twitter.all <-iconv(twitter.all, "UTF-8", "ASCII",sub='')
+n.twitter = length(twitter.all)
+set.seed(1744)
+train = sample(1:n.twitter, size = floor(.6 * n.twitter))
+expl  = sample(train, size=5e5)
+
+twitter.expl = twitter.all[expl]
+```
+
+Following code loads the text into the corous data structure of the tm package.
+We are converting text into ASCII encoding, transforming the text into all lower
+case letters, removing obscene wordse and stem document.
+```{r dataTrans, cache=T}
+library(tm)
+library(SnowballC)
+#require(doParallel)
+#cl <- makeCluster(detectCores())
+#registerDoParallel(cl)
+source("lib//swear.R")
+
+corpus = Corpus(VectorSource(twitter.expl), readerControl = list(language="english"))
+corpus=tm_map(corpus, content_transformer(tolower))
+corpus=tm_map(corpus, removeWords,  c(stopwords("english"), swear))
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, stripWhitespace)
+corpus = tm_map(corpus, stemDocument)
+```
+
+Building the corpus is the most memory intensive step in our process however it
+allows for routines in tm package to preprocess and summarize data set for us.
+
+
+Follwowing building the corpus we examine most frequently used words.
+It is obvious that for us to be able to predict the next word it should be
+frequent in the corpus.
+
+```{r dtm, cache=TRUE, dependson="dataTrans"}
+#  dtm <- DocumentTermMatrix(corpus, 
+#                  control=list(wordLengths=c(1, Inf),
+#                  bounds=list(global=c(floor(length(corpus$content)*0.01), Inf))))
+# 
+# 
+#  dtm10 <- DocumentTermMatrix(corpus, 
+#                  control=list(wordLengths=c(1, Inf),
+#                  bounds=list(global=c(floor(length(corpus$content)*0.001), Inf))))
+
+ dtm100 <- DocumentTermMatrix(corpus, 
+                 control=list(wordLengths=c(1, Inf),
+                 bounds=list(global=c(floor(length(corpus$content)*0.0001), Inf))))
+
+```
+
+
+Now Lets compute Bi and Tri-grams or that words that mos commonly go together.
+Build Document term Matrix and  computing Bi to Quad-grams.
+see http://tm.r-forge.r-project.org/faq.html.
+
+To limit space used during this process we will limit ngrams recorded only if
+their frequency is greater than 0.01% across all twitter messages.
+
+```{r NGrams, cache=TRUE, dependson="dataTrans"}
+library(RWeka)
+library(tm)
+library(SnowballC)
+Sys.setenv(JAVA_HOME='C:\\ORACLE\\product\\12.1.0\\dbhome_2\\jdk\\jre')
+library (rJava)
+
+options(mc.cores=1)
+# http://stackoverflow.com/questions/19024873/why-does-r-hang-when-using-ngramtokenizer?rq=1
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 4))
+
+# nGram <- TermDocumentMatrix(corpus, 
+#                             control = list(tokenize = BigramTokenizer)
+#                             #bounds=list(global=c(floor(length(corpus$content)*0.0001), Inf))
+#         )
+
+NGram  <- DocumentTermMatrix(corpus, 
+                 control=
+  		list(	wordLengths=c(1, Inf),
+                 		bounds=list(global=c(floor(length(corpus$content)*0.0001), Inf)),
+				tokenize = BigramTokenizer
+			)
+		)
+```
+
+
+Lets summarize our word and N-Gram frequency tables. We will be using these data 
+structures in the predictive modeling.
+
+```{r sumNGrams, cache=TRUE, dependson="NGrams", dependson="dtm"}
+
+source('lib//db_summarize_words.R')
+
+source('lib//dd_summarize_ngrams.R')
+
+wsum[,Frequency:=N/5e5]
+ngsum[,Frequency:=N/5e5]
+
+wsum$word= factor(wsum$word, levels=wsum$word)
+ngsum$ngram = factor(ngsum$ngram, levels=ngsum$ngram)
+```
+
+
+Lets plot frequencies of occurances of words
+
+```{r pltWords, dependson="sumNGrams", fig.height=10}
+library(ggplot2)
+
+
+fw = factor()
+wrdFreq <- ggplot(data=wsum, aes(x=word, y=Frequency)) +
+  geom_bar(stat="identity") + 
+  labs(x="Word", y="Frequency", title="Top 100 Word Frequencies") +
+  coord_flip()
+
+print(wrdFreq)
+```
+
+A Plot of Top 100 N-Grams
+
+```{r pltNGrams, dependson="sumNGrams", fig.height=10}
+library(ggplot2)
+
+
+fw = factor()
+ngrmFreq <- ggplot(data=ngsum, aes(x=ngram, y=Frequency)) +
+  geom_bar(stat="identity") + 
+  labs(x="N-Gram", y="Frequency", title="Top 100 N-Gram Frequencies") +
+  coord_flip()
+
+print(ngrmFreq)
+```

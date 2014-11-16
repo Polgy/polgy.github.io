@@ -1,0 +1,85 @@
+---
+title: "aa_MIT_tm"
+author: "Sergey Polgul"
+date: "Monday, November 03, 2014"
+output: html_document
+---
+
+
+```{r loadTwitt}
+tweets= read.csv("H:/cEra/TextAnalytics/tweets-tweets.csv-.csv", stringsAsFactors=F)
+str(tweets)
+
+tweets$Negative = as.factor(tweets$Avg <= -1)
+table(tweets$Negative)
+
+require(tm)
+require(SnowballC)
+
+corpus=Corpus(VectorSource(tweets$Tweet))
+#VectorSource can process encoding
+
+
+```
+
+
+Now lets look at different transofrmations
+
+
+```{r twittTrans}
+stopwords("english")
+corpus=tm_map(corpus, removeWords, c("apple", stopwords("english")))
+corpus[[1]]
+
+corpus = tm_map(corpus, stemDocument)
+
+corpus[[1]]
+```
+
+Now lets generate data structures for analysis
+
+```{r tweetFreq}
+freq = DocumentTermMatrix(corpus)
+freq
+
+inspect(freq[1000:1005, 505:515])
+findFreqTerms(freq, lowfreq=20)
+
+dense = removeSparseTerms(freq, .995)
+object.size(dense)
+
+tweetsDense = as.data.frame(as.matrix(dense))
+
+colnames(tweetsDense) = make.names(colnames(tweetsDense))
+colnames(tweetsDense) = gsub('^\\.','ZZ', colnames(tweetsDense))
+dim(tweetsDense)
+object.size(tweetsDense)
+
+tweetsDense$Negative = tweets$Negative
+
+library(caTools)
+
+split=sample.split(tweetsDense$Negative, SplitRatio = .7)
+trainDense = subset(tweetsDense, split==T)
+testDense  = subset(tweetsDense, split==F)
+```
+
+
+Now we are building CART model
+
+```{r tweetModel}
+library(rpart)
+library(rpart.plot)
+
+tweetCART = rpart (Negative ~ ., data=trainDense, method="class")
+prp(tweetCART)
+predictCART = predict(tweetCART, newdata=testDense, type="class")
+
+table(testDense$Negative, predictCART)
+
+library(randomForest)
+
+set.seed(1010)
+tweetRF = randomForest(Negative ~ ., data=trainDense)
+
+```

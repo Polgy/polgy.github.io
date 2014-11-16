@@ -1,0 +1,62 @@
+---
+title: "Capstone"
+author: "Sergey Polgul"
+date: "Sunday, November 09, 2014"
+output: html_document
+---
+
+## The objective of this document is to explore data in the words document files.
+
+```{r readData}
+library(tm)
+ddir = "H:/datasets/SwiftKey/"
+crps = Corpus(DirSource(ddir), readerControl = list(language="en_US"))
+
+
+```
+
+```{r numLines}
+library(stringi)
+#[[1]] blogs.txt
+llengths.blogs = stri_length(crps[[1]])
+max(llengths.blogs)
+
+#[[2]] en_US.news.txt
+llengths.news =  stri_length(crps[[2]])
+max(llengths.news)
+  
+#[[3]] en_US.twitter.txt
+llengths.twitt =  stri_length(crps[[3]])
+max(llengths.twitt)
+
+```
+
+
+```{r matchWOrds}
+library(stringi)
+cnt.love=stri_count(crps[[3]], regex="(?i)love")
+cnt.hate=stri_count(crps[[3]], regex="(?i)hate")
+
+cnt.love=stri_count(crps[[3]], fixed="love")
+cnt.hate=stri_count(crps[[3]], fixed="hate")
+
+sum(cnt.love>0)/sum(cnt.hate>0)
+
+
+cnt.kick = stri_count(crps[[3]], fixed="A computer once beat me at chess, but it was no match for me at kickboxing")
+sum(cnt.kick > 0)
+```
+here is an attempt form worums to pre-process data:
+
+Sys.time()
+onlyAlpha <- content_transformer(function(x) stri_replace_all_regex(x,"[^\\p{L}\\s]+",""))
+dd <- tm_map(crps, onlyAlpha)
+Sys.time()
+
+crps[[1]]$content[164146]
+dd[[1]]$content[164146]
+
+> crps[[1]]$content[164146]
+[1] "Panama can't come soon enough! ☀\xf0\u009f\u0091\u0099\xf0\u009f\u008d�\xf0\u009f\u008c�"
+> dd[[1]]$content[164146]
+[1] "Panama cant come soon enough "
