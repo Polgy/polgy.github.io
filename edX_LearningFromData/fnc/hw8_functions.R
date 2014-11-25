@@ -42,7 +42,7 @@ svm_plot = function (ss, trnDat) {
   DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
               xlab("symmetry") + ylab("intensity") +
               #scale_fill_discrete(limits = c(-1, 1)) + 
-              scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+              scale_fill_manual(values = c('lightpink', 'aliceblue')) +
               labs(fill = 'Decision Boundary')
   
   finPlot <- DBplot + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
@@ -53,5 +53,6 @@ svm_plot = function (ss, trnDat) {
   #scale_y_continuous(expand = c(0,0))
   
   #print(DBplot)
+  print(finPlot)
   finPlot
 }

@@ -1,6 +1,6 @@
 ---
 title: "hw8 SVM"
-author: "Sergey Polgul"
+author: "polgs"
 date: "Saturday, November 22, 2014"
 output: html_document
 ---
@@ -21,8 +21,11 @@ tst = read.table(tstFile,
                  )
 ```
 
+```{r fncSV}
+source("fnc/hw8_functions.R")
+```
 ##Probblem 2 Polynomial Kernels
-Lets Runs thi one manually
+Lets Run this one manually
 ```{r q02, dependson="loadData", cache=T}
 library(e1071)
 library(caret)
@@ -69,13 +72,7 @@ rbind ( Experiments, sapply (Experiments, insampleErr))
 
 ```
 
-
 Let now run the results for different Cost values:
-
-```{r fncSV}
-source("fnc/hw8_functions.R")
-```
-
 Lets setup data for 1 vs 5 testing
 
 ```{r dat15, dependson="fncSV"}
@@ -87,9 +84,10 @@ trn15$y = as.factor(with(trn15, ifelse(digit == 1, 1, -1)))
 tst15$y = as.factor(with(tst15, ifelse(digit == 1, 1, -1)))
 ```
 
-Code belw runs the model with various costs and degree=5.
+Code belw runs the model with various costs and degree=2.
 
-```{r varycost, dependson="dat15"}
+```{r varycost, dependson="dat15", fig.width=12}
+require(foreach)
 Costs=10^(-4:0)
 
 fC = function (x) {
@@ -100,39 +98,55 @@ fC = function (x) {
 res=foreach(x=Costs, .combine = rbind) %do% { fC(x)}
 res_c=rbind( Costs, sapply(Costs, fC ))
 
-mysvm = getSvm ( trnData = trn15, Cost = 10^-4  )
+mysvm = getSvm ( trnData = trn15, Cost = 10^-3  )
 
   X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
   y = predict(mysvm, newdata = X)
   
   DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
               xlab("symmetry") + ylab("intensity") +
-              #scale_fill_discrete(limits = c(-1, 1)) + 
-              scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+              scale_fill_manual(values = c('lightpink', 'aliceblue')) +
               labs(fill = 'Decision Boundary')
   
   finPlot <- DBplot + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
               geom_point(data=trn15, aes(symmetry, intensity, color=y)) +
               #labs(color='y') +
               scale_colour_manual(values = c('red', 'blue')) 
-  #scale_x_continuous(expand = c(0,0)) +
-  #scale_y_continuous(expand = c(0,0))
   
   #print(DBplot)
   finPlot
 ```
 
 The code below runs the model with degree=5.
-```{r q06,dependson="dat15", dependson="fncSV"}
+```{r q06,dependson="varycost", dependson="fncSV", fig.width=12}
 Costs=10^(-4:0)
 f5 = function(x) {
   s = getSvm( trn15, Cost=Costs, degree=5)
   unlist(svm.stats(s, trn15, tst15))
 }
 foreach(x=Costs, .combine = rbind) %do% { f5(x)}
-s = getSvm( trn15, Cost=10^-4, degree=5)
-p<-svm_plot(s, trn15)
-print(p)
+
+s <-getSvm( trn15, Cost=1, degree=5)
+
+# for some reason this just duplicates previous plot
+# p<-svm_plot(s, trn15)
+# print(p)
+
+ss = s
+trnDat = trn15
+X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
+y = predict(ss, newdata = X)
+
+DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
+  xlab("symmetry") + ylab("intensity") +
+  scale_fill_manual(values = c('lightpink', 'aliceblue')) +
+  labs(fill = 'Decision Boundary')
+
+finPlot <- DBplot + 
+  geom_point(data=trnDat, aes(symmetry, intensity, color=y)) +
+  scale_colour_manual(values = c('red', 'blue')) 
+
+finPlot
 
 ```
 
@@ -144,8 +158,9 @@ partition of the data, we will try 100 runs with different partitions, and base 
 answer on the number of runs that lead to a particular choice
 
 Boot strap here and cross-validation below produces similar results.
+Used this code to decide submission.
 
-```{r manTune, dependson="dat15", cache=T}
+```{r manTune, dependson="dat15", cache=T, fig.width=12}
 library(foreach)
 library(data.table)
 REPS=100
@@ -200,10 +215,11 @@ resdt[,.N, by=Cost]
 resdt[,mean(E_out), by=Cost]
 
 ```
-The code below uses svm cross validataion to get winner in each run.
+
+The code below uses svm cross validataion parameter to get winner in each run.
 Runs are manual.
 
-```{r useSVMCross, dependson="dat15", cache=T}
+```{r useSVMCross, dependson="dat15", cache=T, fig.width=12}
 library(foreach)
 library(data.table)
 REPS=100
@@ -233,7 +249,8 @@ m<-ggplot( grid_results, aes(x=E_out, xlab = "E_cv") ) +geom_histogram() +
   xlab("E_cv") +ggtitle ("Distribution of E_cv by Cost")
 print(m)
 ```
-#### Trying Tuning Methods from caret package
+
+### Trying Tuning Methods from caret package
 
 This is an attempt do do automatic model selection with parameters using Caret package.
 
@@ -271,6 +288,7 @@ svmCV <- train ( y ~ symmetry + intensity, data = trn15,
                  )
 
 ```
+
 #### Trying tuning methods from e0171 package
 This is an attempt using automatic tuning paramters from e1071 package.
 Current issue is that it returns the same Errors for all cost values.
@@ -304,7 +322,7 @@ Results are sensible and accepted.
 Erorr:for some reasone this just repeats the last graph.
 TODO: Run in Prod version of R-Studio to doublecheck.
 
-```{r RBF, dependson="dat15"}
+```{r RBF, dependson="dat15", fig.width=12}
 require(e1071)
 require(foreach)
 require(ggplot2)
@@ -320,14 +338,18 @@ foreach(x=Costs, .combine = rbind)   %do% {
 
 ## For some reason plot from function does not work
 s_p6 = getRBF(trn15, Cost=10^6)
-p=svm_plot(s_p6, trn15)
-print(p)
+# p=svm_plot(s_p6, trn15)
+# print(p)
 
-s_p2 = getRBF(trn15, Cost=10^2)
-p=svm_plot(s_p2, trn15)
-print(p)
+# s_p2 <- getRBF(trn15, Cost=10^2)
+# p2<-svm_plot(s_p2, trn15)
+# print(p2)
+
+```
 
 
+The Plot below is for cost = 10e6
+```{r pltCost_6, dependson="RBF", fig.width=12}
 ss=s_p6
   X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
   y = predict(ss, newdata = X)
@@ -335,7 +357,7 @@ ss=s_p6
   DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
               xlab("symmetry") + ylab("intensity") +
               #scale_fill_discrete(limits = c(-1, 1)) + 
-              scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+              scale_fill_manual(values = c('lightpink', 'aliceblue')) +
               labs(fill = 'Decision Boundary')
   
   finPlot1 <- DBplot + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
@@ -344,7 +366,12 @@ ss=s_p6
               scale_colour_manual(values = c('red', 'blue')) 
   #scale_x_continuous(expand = c(0,0)) +
   #scale_y_continuous(expand = c(0,0))
-  
+print(finPlot1)
+```
+
+
+The plot Below is for cost=100
+```{r pltCost_2, dependson="RBF", fig.width=12}
 ss=s_p2
   X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
   y = predict(ss, newdata = X)
@@ -352,7 +379,7 @@ ss=s_p2
   DBplot2  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
               xlab("symmetry") + ylab("intensity") +
               #scale_fill_discrete(limits = c(-1, 1)) + 
-              scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+              scale_fill_manual(values = c('lightpink', 'aliceblue')) +
               labs(fill = 'Decision Boundary')
   
   finPlot2 <- DBplot2 + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
@@ -361,7 +388,8 @@ ss=s_p2
               scale_colour_manual(values = c('red', 'blue')) 
   #scale_x_continuous(expand = c(0,0)) +
   #scale_y_continuous(expand = c(0,0))
+print(finPlot2)
 
-grid.arrange( finPlot1, finPlot2, ncol=2, main = textGrob("SVM DB with 10^6 and 10^2"))
+#grid.arrange( finPlot1, finPlot2, ncol=2, main = textGrob("SVM DB with 10^6 and 10^2"))
 
 ```
