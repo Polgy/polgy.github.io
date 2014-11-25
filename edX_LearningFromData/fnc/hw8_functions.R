@@ -1,5 +1,3 @@
-#```{r fncSV}
-
 
 getRBF  = function (trnData, Cost=0.01, gamma=1) {
   s.ret = svm( y ~ symmetry + intensity, 
@@ -28,7 +26,6 @@ svm.stats = function (x.svm , trnData, tstData) {
        E_in= 1-sum(predict(x.svm)==trnData$y)/dim(trnData)[1],
        E_out=1-sum(pred==tstData$y)/dim(tstData)[1])
 }
-#```
 
 svm_plot = function (ss, trnDat) {
   library(ggplot2)
@@ -36,8 +33,8 @@ svm_plot = function (ss, trnDat) {
   
   # titlePiece <- as.character(lambda)
   
-  X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
-  y = predict(ss, newdata = X)
+  X <<- expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
+  y <<- predict(ss, newdata = X)
   
   DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
               xlab("symmetry") + ylab("intensity") +
@@ -49,10 +46,11 @@ svm_plot = function (ss, trnDat) {
               geom_point(data=trnDat, aes(symmetry, intensity, color=y)) +
               #labs(color='y') +
               scale_colour_manual(values = c('red', 'blue')) 
+  
   #scale_x_continuous(expand = c(0,0)) +
   #scale_y_continuous(expand = c(0,0))
   
   #print(DBplot)
-  print(finPlot)
+  #print(finPlot)
   finPlot
 }

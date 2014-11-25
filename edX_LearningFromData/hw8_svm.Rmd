@@ -26,7 +26,7 @@ source("fnc/hw8_functions.R")
 ```
 ##Probblem 2 Polynomial Kernels
 Lets Run this one manually
-```{r q02, dependson="loadData", cache=T}
+```{r q02, dependson="loadData", cache=T, fig.width=12}
 library(e1071)
 library(caret)
 
@@ -34,6 +34,7 @@ trn$y = as.factor(with(trn, ifelse(digit == 0, 1, -1)))
 
 sp2=getSvm(trn, Cost=0.01)
 confusionMatrix(predict(sp2), trn$y)
+svm_plot(sp2, trn)
 ```
 
 # ```{r plotDB}
@@ -129,24 +130,9 @@ foreach(x=Costs, .combine = rbind) %do% { f5(x)}
 s <-getSvm( trn15, Cost=1, degree=5)
 
 # for some reason this just duplicates previous plot
-# p<-svm_plot(s, trn15)
-# print(p)
-
-ss = s
-trnDat = trn15
-X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
-y = predict(ss, newdata = X)
-
-DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
-  xlab("symmetry") + ylab("intensity") +
-  scale_fill_manual(values = c('lightpink', 'aliceblue')) +
-  labs(fill = 'Decision Boundary')
-
-finPlot <- DBplot + 
-  geom_point(data=trnDat, aes(symmetry, intensity, color=y)) +
-  scale_colour_manual(values = c('red', 'blue')) 
-
-finPlot
+# update: this works if we define X,y in parent environment or closure
+p<-svm_plot(s, trn15)
+print(p)
 
 ```
 
@@ -159,7 +145,6 @@ answer on the number of runs that lead to a particular choice
 
 Boot strap here and cross-validation below produces similar results.
 Used this code to decide submission.
-
 ```{r manTune, dependson="dat15", cache=T, fig.width=12}
 library(foreach)
 library(data.table)
@@ -336,60 +321,31 @@ foreach(x=Costs, .combine = rbind)   %do% {
     cbind(s.s, Cost=x)
 }
 
-## For some reason plot from function does not work
-s_p6 = getRBF(trn15, Cost=10^6)
-# p=svm_plot(s_p6, trn15)
-# print(p)
 
-# s_p2 <- getRBF(trn15, Cost=10^2)
-# p2<-svm_plot(s_p2, trn15)
-# print(p2)
 
 ```
 
 
 The Plot below is for cost = 10e6
 ```{r pltCost_6, dependson="RBF", fig.width=12}
-ss=s_p6
-  X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
-  y = predict(ss, newdata = X)
-  
-  DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
-              xlab("symmetry") + ylab("intensity") +
-              #scale_fill_discrete(limits = c(-1, 1)) + 
-              scale_fill_manual(values = c('lightpink', 'aliceblue')) +
-              labs(fill = 'Decision Boundary')
-  
-  finPlot1 <- DBplot + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
-              geom_point(data=trn15, aes(symmetry, intensity, color=y)) +
-              #labs(color='y') +
-              scale_colour_manual(values = c('red', 'blue')) 
-  #scale_x_continuous(expand = c(0,0)) +
-  #scale_y_continuous(expand = c(0,0))
-print(finPlot1)
+s_p6 = getRBF(trn15, Cost=10^6)
+p1=svm_plot(s_p6, trn15)
+print(p1)
+
 ```
 
 
 The plot Below is for cost=100
 ```{r pltCost_2, dependson="RBF", fig.width=12}
-ss=s_p2
-  X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
-  y = predict(ss, newdata = X)
-  
-  DBplot2  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
-              xlab("symmetry") + ylab("intensity") +
-              #scale_fill_discrete(limits = c(-1, 1)) + 
-              scale_fill_manual(values = c('lightpink', 'aliceblue')) +
-              labs(fill = 'Decision Boundary')
-  
-  finPlot2 <- DBplot2 + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
-              geom_point(data=trn15, aes(symmetry, intensity, color=y)) +
-              #labs(color='y') +
-              scale_colour_manual(values = c('red', 'blue')) 
-  #scale_x_continuous(expand = c(0,0)) +
-  #scale_y_continuous(expand = c(0,0))
-print(finPlot2)
+s_p2 <- getRBF(trn15, Cost=10^2)
+p2<-svm_plot(s_p2, trn15)
+print(p2)
+```
 
-#grid.arrange( finPlot1, finPlot2, ncol=2, main = textGrob("SVM DB with 10^6 and 10^2"))
+Code below still does not work even with environemtn trick. will need to define a real 
+closure for this to work.
+```{r combinedPlot, eval=FALSE}
+require(gridExtra)
+grid.arrange( p1, p2, ncol=2, main = textGrob("SVM DB with 10^6 and 10^2"))
 
 ```
