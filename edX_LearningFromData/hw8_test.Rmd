@@ -1,0 +1,21 @@
+---
+title: "hw8_test"
+author: "Sergey Polgul"
+date: "Sunday, November 23, 2014"
+output: html_document
+---
+
+```{r ghostProb}
+trn46 =  subset(trn, trn$digit==4 | trn$digit==6)
+trn46$y = as.factor(with(trn46, ifelse(digit == 4, 1, -1)))
+tst46 =  subset(tst, tst$digit==4 | tst$digit==6)
+tst46$y = as.factor(with(tst46, ifelse(digit == 4, 1, -1)))
+
+gsvm = getSvm (trn46, Cost=1)
+svm.stats(gsvm, trn46, tst46)
+fC = function (x) {
+       mysvm = getSvm ( trnData = trn46, Cost = x  )
+       res = unlist(svm.stats(mysvm, trn46, tst46))
+}
+t(rbind( Costs, sapply(Costs, fC )))
+```

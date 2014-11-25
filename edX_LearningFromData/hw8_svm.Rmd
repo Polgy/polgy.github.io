@@ -1,0 +1,367 @@
+---
+title: "hw8 SVM"
+author: "Sergey Polgul"
+date: "Saturday, November 22, 2014"
+output: html_document
+---
+## Loading data
+```{r setup}
+ddir='H:/datasets/'
+trnFile=paste0(ddir, 'features.train')
+tstFile=paste0(ddir, 'features.test')
+```
+
+```{r loadData}
+trn = read.table(trnFile, 
+                 col.names = c('digit', 'intensity', 'symmetry'),
+                 colClasses=c("numeric", "numeric", "numeric"))
+tst = read.table(tstFile, 
+                 col.names = c('digit', 'intensity', 'symmetry'),
+                 colClasses=c("numeric", "numeric", "numeric")
+                 )
+```
+
+##Probblem 2 Polynomial Kernels
+Lets Runs thi one manually
+```{r q02, dependson="loadData", cache=T}
+library(e1071)
+library(caret)
+
+trn$y = as.factor(with(trn, ifelse(digit == 0, 1, -1)))
+
+sp2=getSvm(trn, Cost=0.01)
+confusionMatrix(predict(sp2), trn$y)
+```
+
+# ```{r plotDB}
+# plt=svm.plot(sp2, trn)
+# print(plt)
+# 
+# ```
+
+Lets define a function and run a few experiments
+
+```{r q2_ovs_all, dependson="loadData"}
+#now lets automate this
+require(e1071)
+require(caret)
+insampleErr = function (refDigit) {
+  mytrn = trn
+  mytrn$y =  as.factor(with(mytrn, ifelse(digit == refDigit, 1, -1)))
+  
+  sp2 = getSvm( mytrn, degree=2)
+  cm = confusionMatrix(predict(sp2), mytrn$y)
+  
+  # return insample error
+  list(E_in=(cm$table[1,2]+cm$table[2,1])/sum(cm$table), N_sv= dim(sp2$SV)[1])
+}
+
+
+Experiments = c (0, 2, 4, 6, 8)
+
+rbind ( Experiments, sapply (Experiments, insampleErr))
+```
+
+
+```{r q3, dependson="q2_ovs_all"}
+Experiments=c(1,3,5,7,9)
+rbind ( Experiments, sapply (Experiments, insampleErr))
+
+```
+
+
+Let now run the results for different Cost values:
+
+```{r fncSV}
+source("fnc/hw8_functions.R")
+```
+
+Lets setup data for 1 vs 5 testing
+
+```{r dat15, dependson="fncSV"}
+library(foreach)
+tst15 = subset(tst, tst$digit==1 | tst$digit==5)
+trn15 = subset(trn, trn$digit==1 | trn$digit==5)
+
+trn15$y = as.factor(with(trn15, ifelse(digit == 1, 1, -1)))
+tst15$y = as.factor(with(tst15, ifelse(digit == 1, 1, -1)))
+```
+
+Code belw runs the model with various costs and degree=5.
+
+```{r varycost, dependson="dat15"}
+Costs=10^(-4:0)
+
+fC = function (x) {
+       mysvm = getSvm ( trnData = trn15, Cost = x  )
+       res = unlist(svm.stats(mysvm, trn15, tst15))
+}
+
+res=foreach(x=Costs, .combine = rbind) %do% { fC(x)}
+res_c=rbind( Costs, sapply(Costs, fC ))
+
+mysvm = getSvm ( trnData = trn15, Cost = 10^-4  )
+
+  X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
+  y = predict(mysvm, newdata = X)
+  
+  DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
+              xlab("symmetry") + ylab("intensity") +
+              #scale_fill_discrete(limits = c(-1, 1)) + 
+              scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+              labs(fill = 'Decision Boundary')
+  
+  finPlot <- DBplot + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
+              geom_point(data=trn15, aes(symmetry, intensity, color=y)) +
+              #labs(color='y') +
+              scale_colour_manual(values = c('red', 'blue')) 
+  #scale_x_continuous(expand = c(0,0)) +
+  #scale_y_continuous(expand = c(0,0))
+  
+  #print(DBplot)
+  finPlot
+```
+
+The code below runs the model with degree=5.
+```{r q06,dependson="dat15", dependson="fncSV"}
+Costs=10^(-4:0)
+f5 = function(x) {
+  s = getSvm( trn15, Cost=Costs, degree=5)
+  unlist(svm.stats(s, trn15, tst15))
+}
+foreach(x=Costs, .combine = rbind) %do% { f5(x)}
+s = getSvm( trn15, Cost=10^-4, degree=5)
+p<-svm_plot(s, trn15)
+print(p)
+
+```
+
+##Boot strapping 
+In the next two problems, we will experiment with 10-fold cross validation for the
+polynomial kernel. Because $E_{cv}$
+is a random variable that depends on the random
+partition of the data, we will try 100 runs with different partitions, and base our
+answer on the number of runs that lead to a particular choice
+
+Boot strap here and cross-validation below produces similar results.
+
+```{r manTune, dependson="dat15", cache=T}
+library(foreach)
+library(data.table)
+REPS=100
+Costs=10^(-4:0)
+set.seed(1215)
+set.seed(1539)
+all.reps=foreach (r=1:REPS, .combine = rbind) %do% {
+  trnidx = sample(1561, floor(1560/10*9))
+  all.res = foreach (Cost=Costs, .combine = rbind) %do% {
+    smod = getSvm(trn15[trnidx,], Cost = Cost)
+    stat = svm.stats ( smod, trn15[trnidx,], trn15[-trnidx,])
+    allres=cbind(stat, Cost=Cost, REP=r)
+  }
+topres= all.res[order(all.res$E_out, all.res$Cost),][1,]
+}
+
+
+grid_results = data.table(all.reps)
+grid_results[,mean(E_out), by=Cost]
+grid_results[,mean(E_in), by=Cost]
+#this works if topres is uncommented
+grid_results[,.N, by=Cost]
+
+m<-ggplot( grid_results, aes(x=E_out, xlab = "E_cv") ) +geom_histogram() + facet_grid( . ~ Cost) +
+  xlab("E_cv") +ggtitle ("Distribution of E_cv by Cost")
+print(m)
+```
+
+```{r manualFolds, dependson="dat15", dependson="fncSV", cache=T, eval=FALSE}
+library(foreach)
+library(data.table)
+require(caret)
+
+REPS=10
+Costs=10^(-4:0)
+set.seed(1215)
+set.seed(1539)
+all.reps=foreach (r=c(1:REPS), .combine = rbind) %do% {
+  fldIdx = with(trn15, createFolds(y, 10, list=F))
+  cvRes = foreach(fld=c(1:10), .combine = rbind) %do% {
+    cRes = foreach (cs=10^(-4:0), combine = rbind) %do% {
+      smod = getSvm(trn15[fldIdx!=fld,], Cost = cs)
+      stat = svm.stats ( smod, trn15[fldIdx!=fld,], trn15[fldIdx==fld,])
+      c.res = cbind(stat, Cost=cs, REP=r)
+    }
+  }
+  #cvRes[order(cvRes$E_out, cvRes$Cost),][1,]
+}
+
+resdt = data.table(all.reps)
+resdt[,.N, by=Cost]
+resdt[,mean(E_out), by=Cost]
+
+```
+The code below uses svm cross validataion to get winner in each run.
+Runs are manual.
+
+```{r useSVMCross, dependson="dat15", cache=T}
+library(foreach)
+library(data.table)
+REPS=100
+Costs=10^(-4:0)
+set.seed(1215)
+set.seed(1539)
+all.reps=foreach (r=1:REPS, .combine = rbind) %do% {
+  all.res = foreach(cc = Costs, .combine = rbind) %do% {
+    sss = svm( y ~ symmetry + intensity, 
+           data=trn15, 
+           kernel= 'polynomial', degree= 2 , cost= cc, coef0=1, gamma=1,
+           scale=F, cross = 10)
+    data.frame( Cost = cc, E_out = 1 - sss$accuracies/100)
+  }
+  #topres= all.res[order(all.res$E_out, all.res$Cost),][1,]
+}
+
+grid_results = data.table(all.reps)
+
+#this works if topres is uncommented
+grid_results[,.N, by=Cost]
+
+grid_results[,list(E_cv=mean(E_out)), by=Cost]
+
+m<-ggplot( grid_results, aes(x=E_out, xlab = "E_cv") ) +geom_histogram() + 
+  facet_grid( . ~ Cost) +
+  xlab("E_cv") +ggtitle ("Distribution of E_cv by Cost")
+print(m)
+```
+#### Trying Tuning Methods from caret package
+
+This is an attempt do do automatic model selection with parameters using Caret package.
+
+Current issues is passing exact parameters to kernlab svm function, and hot having
+variables scaled.
+Also it apperas that caret mixes up Cost variable in passing it through the model.
+
+Obeservations are made examining best.model manually.
+
+```{r q_cv, dependson="dat15"}
+library(caret)
+Costs = 10^(-4:0)
+
+#lets sets seeds for reproducable resamples
+set.seed(1027)
+seeds = sample.int(1000, 100)
+
+svmGrid = data.frame(degree = 2, 
+                     scale = F, #this is really a cost
+                     C = Costs #scale
+                     #type = "C-svc",
+                     #kernel = "polydot",
+                     #offset = 1
+                     )
+
+trainSettings = trainControl( method = "repeatedcv", 
+                              number=10, repeats=10, 
+                              seeds = seeds,
+                              allowParallel=T)
+
+svmCV <- train ( y ~ symmetry + intensity, data = trn15,
+                 method = 'svmPoly', 
+                 tuneGrid = svmGrid,
+                 preProcess  = NULL
+                 )
+
+```
+#### Trying tuning methods from e0171 package
+This is an attempt using automatic tuning paramters from e1071 package.
+Current issue is that it returns the same Errors for all cost values.
+```{r cv_esvm, dependson="dat15"}
+library(e1071)
+
+Costs = 10^(-4:0)
+
+ctlObj = tune.control(sampling = "cross", cross=10, performances = T )
+
+tunObj = tune(svm, y ~ intensity + symmetry, data = trn15,
+              ranges = list(kernel= 'polynomial', degree = 2, costs = Costs,
+                            coef0 = 1, gamma = 1, scale = F),
+              tunecontrol = ctlObj)
+tunObj$performances
+tunObj$best.parameters
+
+tunObj = tune(svm, y ~ intensity + symmetry, data = trn15,
+              ranges = list(kernel= 'polynomial', degree = 2, costs = Costs,
+                            coef0 = 1, gamma = 1, scale = F)
+              #tunecontrol = ctlObj
+              )
+tunObj$performances
+tunObj$best.parameters
+```
+
+### RBF Kernel
+Consider the radial basis function (RBF) kernel.
+Results are sensible and accepted.
+
+Erorr:for some reasone this just repeats the last graph.
+TODO: Run in Prod version of R-Studio to doublecheck.
+
+```{r RBF, dependson="dat15"}
+require(e1071)
+require(foreach)
+require(ggplot2)
+require(gridExtra)
+Costs=10^c(-2, 0, 2, 4, 6)
+
+#sapply(Costs, function(x) { s = getRBF(trn15, Cost=x); s.s = svm.stats( s, trn15, tst15)})
+foreach(x=Costs, .combine = rbind)   %do% { 
+    s = getRBF(trn15, Cost=x); 
+    s.s = svm.stats( s, trn15, tst15) 
+    cbind(s.s, Cost=x)
+}
+
+## For some reason plot from function does not work
+s_p6 = getRBF(trn15, Cost=10^6)
+p=svm_plot(s_p6, trn15)
+print(p)
+
+s_p2 = getRBF(trn15, Cost=10^2)
+p=svm_plot(s_p2, trn15)
+print(p)
+
+
+ss=s_p6
+  X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
+  y = predict(ss, newdata = X)
+  
+  DBplot  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
+              xlab("symmetry") + ylab("intensity") +
+              #scale_fill_discrete(limits = c(-1, 1)) + 
+              scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+              labs(fill = 'Decision Boundary')
+  
+  finPlot1 <- DBplot + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
+              geom_point(data=trn15, aes(symmetry, intensity, color=y)) +
+              #labs(color='y') +
+              scale_colour_manual(values = c('red', 'blue')) 
+  #scale_x_continuous(expand = c(0,0)) +
+  #scale_y_continuous(expand = c(0,0))
+  
+ss=s_p2
+  X = expand.grid(list(symmetry=seq(-7.5, 0, .01), intensity=seq(0, 0.7, .01) ))
+  y = predict(ss, newdata = X)
+  
+  DBplot2  <- ggplot(data = X, aes(symmetry, intensity, fill = as.factor(y))) + geom_tile() +
+              xlab("symmetry") + ylab("intensity") +
+              #scale_fill_discrete(limits = c(-1, 1)) + 
+              scale_fill_manual(values = c('gray97', 'lightgoldenrod')) +
+              labs(fill = 'Decision Boundary')
+  
+  finPlot2 <- DBplot2 + #ggtitle(bquote('Training Data: '~lambda == .(titlePiece))) +
+              geom_point(data=trn15, aes(symmetry, intensity, color=y)) +
+              #labs(color='y') +
+              scale_colour_manual(values = c('red', 'blue')) 
+  #scale_x_continuous(expand = c(0,0)) +
+  #scale_y_continuous(expand = c(0,0))
+
+grid.arrange( finPlot1, finPlot2, ncol=2, main = textGrob("SVM DB with 10^6 and 10^2"))
+
+```
