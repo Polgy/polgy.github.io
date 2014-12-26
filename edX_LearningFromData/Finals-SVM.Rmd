@@ -1,0 +1,32 @@
+---
+title: "Finals-Svm"
+author: "Sergey Polgul"
+date: "Thursday, December 04, 2014"
+output: html_document
+---
+
+```{r svmDat}
+dat = rbind (c(1,0),
+             c(0,1),
+             c(0,-1),
+             c(-1,0),
+             c(0,2),
+             c(0,-2),
+             c(-2,0))
+
+y=c(-1, -1, -1, 1, 1, 1, 1)
+
+D=data.frame(x1=dat[,1], x2=dat[,2],y=y)
+require(ggplot2)
+qplot(x1,x2, color=y, data = D)
+
+```
+
+
+```{r trans}
+require(ggplot2)
+X=expand.grid(x1=1, x2=seq(-1,1,.01))
+X=expand.grid(x2=1, x1=seq(-1,1,.01))
+z1=X$x2^2 -2*X$x1 -1; z2= X$x1^2 -2*X$x2 +1
+qplot(z1, z2)
+```

@@ -1,0 +1,144 @@
+---
+title: "Finals"
+author: "Sergey Polgul"
+date: "Thursday, December 04, 2014"
+output: html_document
+---
+
+check out hte location of theses files:
+
+http://work.caltech.edu/library
+
+SVM Problem:
+
+http://www.amlbook.com/data/zip/features.train
+
+```{r loadData, cache=T}
+trnUrl = 'http://www.amlbook.com/data/zip/features.train'
+trnDat = read.table(trnUrl,
+                 col.names = c('digit', 'intensity', 'symmetry'),
+                 colClasses=c("numeric", "numeric", "numeric")
+                    )
+
+tstUrl = 'http://www.amlbook.com/data/zip/features.test'
+tstDat = read.table(tstUrl,
+                 col.names = c('digit', 'intensity', 'symmetry'),
+                 colClasses=c("numeric", "numeric", "numeric")
+                    )
+
+summary(trnDat)
+```
+
+Now lets fit a ridge regression model
+
+```{r fncReg}
+
+fitRidge = function ( DF, y, lambda = 1e-3 ) {
+  #lets add intercept to input data frame
+  Z=data.matrix(cbind(Intercept=1, DF))
+  M=dim(Z)[2]
+  w_ridge = solve((t(Z)%*%Z + lambda*diag(M)), t(Z)%*%y)
+}
+
+predict.ridge = function (W, DF) {
+  Z= data.matrix(cbind(Intercept=1, DF))
+  y= sign(Z%*%W)
+}
+
+ref_df = function (DF, ref = 1) {
+  DF$outcome = ifelse(DF$digit== ref , 1, -1)
+  DF
+}
+
+```
+
+Lets now run regresson for various scenarous and evaluate E_in and E_out.
+
+```{r runRidge, dependson="LoadData"}
+require(foreach)
+
+sim = foreach (i =0:9, .combine = rbind) %do% {
+  dat = ref_df(trnDat, ref = i)
+  mod = fitRidge(dat[,2:3], dat$outcome, lambda = 1)
+  
+  prd = predict.ridge( mod, dat[,2:3])
+  E_in = sum(prd != dat$outcome)/length(dat$outcome)
+  
+  tst = ref_df(tstDat, ref=i)
+  trd = predict.ridge( mod, tst[,2:3])
+  E_ot = sum(trd != tst$outcome)/length(tst$outcome)
+  data.frame(E_in=E_in, E_ot=E_ot)
+}
+sim
+```
+
+Result: 8 vs All has lowest E_in
+
+
+```{r runTransform, dependson="loadData"}
+tr.deg5 = function (DF, ref=1){
+  outcome = ifelse(DF$digit== ref , 1, -1)
+  
+  DF = DF[,c(2:3)]
+  DF$cross = DF[,1]* DF[,2]
+  DF$v1sq  = DF[,1]^2
+  DF$v2sq  = DF[,2]^2
+  DF$outcome = outcome
+  DF
+}
+
+
+sim.tr = foreach (i =0:9, .combine = rbind) %do% {
+  dat = tr.deg5(trnDat, ref = i)
+  mod = fitRidge(dat[,1:5], dat$outcome, lambda = 1)
+  
+  prd = predict.ridge( mod, dat[,1:5])
+  E_in = sum(prd != dat$outcome)/length(dat$outcome)
+  
+  tst = tr.deg5(tstDat, ref=i)
+  trd = predict.ridge( mod, tst[,1:5])
+  E_ot = sum(trd != tst$outcome)/length(tst$outcome)
+  data.frame(E_in=E_in, E_ot=E_ot)
+}
+sim.tr
+```
+
+Result 1 vs all has smallest Err
+
+
+Re-running code above for lambdadoes not give me a definite answer for problem #9.
+Perhaps number [c] would be right as we do not have a statistically significant 
+improvement.
+it improves 5 vs all performance by 6%. .95 improvement is not always happening.
+
+
+
+Following code is to run with different regularization for 1 vs 5 performance
+
+
+```{r 1vs5}
+
+Lambdas=10^(-3:6)
+trn1vs5 = subset(trnDat, digit==1 | digit ==5)
+tst1vs5 = subset(tstDat, digit==1 | digit ==5)
+dat =  tr.deg5(trn1vs5, ref = 1)
+tst =  tr.deg5(tst1vs5, ref = 1)
+
+sim.l = foreach( l = Lambdas, .combine=rbind) %do% {
+  mod = fitRidge(dat[,1:5], dat$outcome, lambda = l)
+  
+  prd = predict.ridge( mod, dat[,1:5])
+  E_in = sum(prd != dat$outcome)/length(dat$outcome)
+  
+  trd = predict.ridge( mod, tst[,1:5])
+  E_ot = sum(trd != tst$outcome)/length(tst$outcome)
+  data.frame(E_in=E_in, E_ot=E_ot)
+}
+
+sim.l
+
+```
+
+We have overfitting we really need 10^2 not to have overfitting on these data/features.
+answer [a] we have evidence of overfitting.
+
